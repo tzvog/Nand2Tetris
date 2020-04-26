@@ -1,0 +1,279 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Screen.jack
+
+/**
+ * A library of functions for displaying graphics on the screen.
+ * The Hack physical screen consists of 512 rows (indexed 0..511, top to bottom)
+ * of 256 pixels each (indexed 0..255, left to right). The top left pixel on 
+ * the screen is indexed (0,0).
+ */
+class Screen {
+    static int screen;
+    static boolean white, black, color;
+    static Array array;
+
+
+    /** Initializes the Screen. */
+    function void init() {
+        var int i, j;
+        let screen = 16384;
+        let white = false;
+        let black = true;
+        let color = true;
+
+        let array = Array.new(16);
+        let i = 1;
+        let j = 0;
+        while(j <16){
+            let array[j] = i;
+            let i = i + i;
+            let j = j + 1;
+        }
+        return;
+    }
+
+    /** Erases the entire screen. */
+    function void clearScreen() {
+        var int i;
+        let i = 0;
+        // go over each register and set to white
+        while(i < 8192){
+            do Memory.poke(screen + i, white);
+            let i = i + 1;
+        }
+        return;
+    }
+
+    /** Sets the current color, to be used for all subsequent drawXXX commands.
+     *  Black is represented by true, white by false. */
+    function void setColor(boolean b) {
+        let color = b;
+        return;
+    }
+
+    /** returns the memory address of location x, y */
+    function int getAddress(int x, int y) {
+        var int i, address;
+        let i = 0;
+        // shift y 5 times (which equals multiplacation in 2^5)
+        while (i < 5){
+            let y = y + y;
+            let i = i + 1;
+        }
+        // address = screen + (32 * y) + (x / 16);
+        let address = screen + y + (x / 16);
+        return address;        
+    }
+
+    /** Draws the (x,y) pixel, using the current color. */
+    function void drawPixel(int x, int y) {
+        var int address, value, bitLocation, bit;
+
+        // get the address of the memory
+        let address = Screen.getAddress(x,y);
+        // get value in register
+        let value = Memory.peek(address);
+        // calculate which bit needs to be manipulated
+        let bitLocation = x&15;
+        // get number which is 0 except for bit which needs to change
+        let bit = array[bitLocation];
+        // if color black
+        if (color){
+            // if not black, change bit
+            let value = (value | bit);
+        }
+        else{
+            // if not white, change bit 
+            let value = (value & ~bit);
+        }
+        // change memory register
+        do Memory.poke(address, value);
+        return;
+    }
+
+    /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
+    function void drawLine(int x1, int y1, int x2, int y2) {
+        var int a, b, dx, dy, temp, incrementB, diff;
+        let a = 0;
+        let b = 0;
+
+        // check if vertical line
+        if (x1 = x2)
+        {
+            if (y1 < y2)
+            {
+                do Screen.drawVerticalLine(x1, y1, y2);
+            }
+            else
+            {
+                do Screen.drawVerticalLine(x1, y2, y1);
+            }
+            return;
+        }
+
+        // if x1 is bigger than x2, change values
+        if (x1 > x2){
+            let temp = x1;
+            let x1 = x2;
+            let x2 = temp;
+            let temp = y1;
+            let y1 = y2;
+            let y2 = temp;
+        }
+
+        // check if horizontal
+        if (y1 = y2)
+        {
+            do Screen.drawHorizontalLine(x1, x2, y1);
+            return;
+        }
+
+        // cal the dx and dy
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+
+        // ascending line
+        if (dy > 0)
+        {
+            while (~(a > dx) & ~(b > dy))
+            {
+                do Screen.drawPixel(x1 + a, y1 + b);
+                if (diff < 0)
+                {
+                    let a = a + 1;
+                    let diff = diff + dy;
+                }
+                else
+                {
+                    let b = b + 1;
+                    let diff = diff - dx;
+                }
+            }
+            return;
+        }
+
+        else{
+        // decending line (dy < 0)
+            while (~(a > dx) & ~(b < dy))
+            {
+                do Screen.drawPixel(x1 + a, y1 + b);
+                if (diff < 0)
+                {
+                    let a = a + 1;
+                    let diff = diff - dy;
+                }
+                else
+                {
+                    let b = b - 1;
+                    let diff = diff - dx;
+                }
+            }
+            return;
+        }
+    }
+
+    /** Draws a horizontal line from pixel (x1,y1) to pixel (x1,y2), using the current color. */
+    function void drawVerticalLine(int x, int y1, int y2) {
+        
+        var int dx, currentBit, address, bitNumber, value;
+        // go over each pixel and color it
+        while(~(y1 > y2))
+        {
+            do Screen.drawPixel(x, y1);
+            // update y1
+            let y1 = y1 + 1;
+        }
+        return;
+    }
+
+
+    /** Draws a horzintal line from pixel (x1,y1) to pixel (x2,y1), using the current color. */
+    function void drawHorizontalLine(int x1, int x2, int y1) {
+
+        var int address, value, currentBit, bitNumber, dx, tempBitNumber;
+        
+        let dx = x2 - x1;
+        // find register and bit in the register
+        let address = Screen.getAddress(x1, y1);
+        let currentBit = x1 & 15;
+
+        while(~(dx < 0))
+        {
+            // if we are at the first bit and we have a full register
+            if((currentBit = 0) & (dx > 15))
+            {
+                do Memory.poke(address, color);
+                let dx = dx - 16;
+                let address = address + 1;
+            }
+            else
+            {
+                let bitNumber = 0;
+                // continue until the end of of the register or the drawing
+                while(~(dx < 0) & (currentBit < 16))
+                {
+                    let tempBitNumber = array[currentBit];
+                    let bitNumber = tempBitNumber | bitNumber;
+                    let currentBit = currentBit + 1;
+                    let dx = dx - 1;
+                }
+                // if we got to 16, update to 0
+                if(currentBit > 15)
+                {
+                    let currentBit = 0;
+                }
+                // change value in the address
+                let value = Memory.peek(address);
+                if(color)
+                {
+                    let value = (value | bitNumber);
+                }
+                else
+                {
+                    let value = (value & ~bitNumber);
+                }
+                // return value and update address number
+                do Memory.poke(address, value);
+                let address = address + 1;
+            }
+        }
+        return;
+    }
+
+    /** Draws a filled rectangle whose top left corner is (x1, y1)
+     * and bottom right corner is (x2,y2), using the current color. */
+    function void drawRectangle(int x1, int y1, int x2, int y2) {
+
+        while((y1 < y2) | (y1 = y2))
+        {
+            do Screen.drawHorizontalLine(x1,x2,y1);
+            let y1 = y1 + 1;
+        }
+        return;        
+    }
+
+    /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
+    function void drawCircle(int x, int y, int r) 
+    {
+        var int dy, center_location;
+
+		if (r < 181)
+		{
+			let dy = -r;
+			
+			while (~(dy > r))
+			{
+				let center_location = Math.sqrt((r * r) - (dy * dy)); 	
+				do Screen.drawLine((x - center_location), (y + dy), 
+				(x + center_location), (y + dy));
+				let dy = dy + 1;
+			}
+		}
+		
+
+		
+        return;
+    }
+}

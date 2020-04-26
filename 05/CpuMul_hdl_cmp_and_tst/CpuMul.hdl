@@ -1,0 +1,80 @@
+/**
+* This chip is an extension of the book CPU by using the extended ALU.
+* More specificly if instruction[15]==0 or (instruction[14] and instruction[13] equals 1)
+* the CpuMul behave exactly as the book CPU.
+* While if it is C instruction and instruction[13] == 0 the output will be D*A/M 
+* (according to instruction[12]).
+* Moreover, if it is c instruction and instruction[14] == 0 it will behave as follows:
+*
+* instruction:  | 12 | 11 | 10 |
+* _____________________________
+* shift left D  | 0  | 1  | 1  |
+* shift left A  | 0  | 1  | 0  |
+* shift left M  | 1  | 1  | 0  |
+* shift right D | 0  | 0  | 1  |
+* shift right A | 0  | 0  | 0  |
+* shift right M | 1  | 0  | 0  |
+**/
+
+CHIP CpuMul{
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset=1) or continue executing
+                         // the current program (reset=0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write into M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+     PARTS:
+
+    // calculates if we should take the input from ALU or instruction 
+    Mux16(a=instruction, b=ALUOut, sel=instruction[15], out=ARegisterInput);
+    
+    // calculates if we are dealing with a C or A istruction 
+    Not(in = instruction[15], out = AInstruction);
+
+    // if we are dealing with an A instruction or the C instruction 
+    // wants us to store the value in a
+    Or(a = AInstruction, b = instruction[5], out = ALoad);
+
+    // gives a value to the A register 
+    ARegister(in = ARegisterInput, load = ALoad, out = ARegisterOut, out[0..14] = addressM);
+
+    // what should be calculated by the ALU the value from the M register or D register  
+    Mux16(a = ARegisterOut, b = inM, sel = instruction[12], out = ALUInput);
+
+    // checks if we need a the value to be reloaded into the D register and a C instruction 
+    And(a = instruction[4], b = instruction[15], out = DLoad);
+    DRegister(in = ALUOut, load = DLoad, out = DRegisterOut);
+
+    // check if we need the extended ALU or the not
+    And(a=instruction[14],b=instruction[13],out=aluReg);
+    Or(a=aluReg,b=AInstruction,out=instruct8);
+    Mux(a=true,b=instruction[13],sel=instruction[15],out=instruct7);
+
+    // gives the extended ALU the instrucion to complete 
+    ExtendAlu(x = DRegisterOut, y = ALUInput, instruction[8]=instruct8,instruction[7]=instruct7, 
+    instruction[0..6]=instruction[6..12], out = ALUOut, out = outM, zr = zr, ng = ng);
+
+
+    // calculates if the value was stored either in A or D register and it was a C instruction therefore it needs to be written to next time
+    And(a = instruction[15], b = instruction[3], out = writeM);
+
+    // calculates what should be put into the pc bit 
+    Or(a = ng, b = zr, out = ngOrzr);
+    Not(in = ngOrzr, out = pos);
+    And(a = pos, b = instruction[0], out = GT);
+    And(a = zr, b = instruction[1], out = EQ);
+    And(a = ng, b = instruction[2], out = LT);
+    Or(a = GT, b = EQ, out = GE);
+    Or(a = GE, b = LT, out = GEL);
+    And(a = GEL, b = instruction[15], out = PCLoad);
+	
+    // fils the value into the pc register 
+    PC(in = ARegisterOut, load = PCLoad, inc = true, reset = reset, out[0..14] = pc);
+
+}

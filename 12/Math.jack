@@ -1,0 +1,177 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Math.jack
+
+/**
+ * A library of commonly used mathematical functions.
+ * Note: Jack compilers implement multiplication and division using OS method calls.
+ */
+class Math {
+
+	static Array litBitsArray; 
+	static int bitAmount; 
+
+    /** Initializes the library. */
+    function void init() {
+		
+		var int currentBit; 
+		var int Val; 
+		
+		let bitAmount = 16;
+		let currentBit = 0; 
+		let litBitsArray = Array.new(bitAmount);
+		let Val = 1; 
+		
+		while(currentBit < bitAmount)
+		{
+			let litBitsArray[currentBit] = Val;
+			let Val = Val + Val; 
+			let currentBit = currentBit + 1; 
+		}
+		
+		return; 
+    }
+
+    /** Returns the absolute value of x. */
+    function int abs(int x) {
+		
+		if(x < 0)
+		{
+			return -x; 
+		}
+		else
+		{
+			return x; 
+		}
+    }
+
+    /** Returns the product of x and y. 
+     *  When a Jack compiler detects the multiplication operator '*' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x*y and multiply(x,y) return the same value.
+     */
+    function int multiply(int x, int y) {
+	
+		var int sum;
+		var int shiftedX;
+		var int bitCounter; 
+		
+		let sum = 0; 
+		let shiftedX = x; 
+		let bitCounter = 0; 
+		
+		
+		while (bitCounter < bitAmount)
+		{
+			if(Math.bit(shiftedX, bitCounter))
+			{
+				let sum = sum + shiftedX;
+			}
+			
+			/** updades the shit and adds to the bit counter**/
+			let shiftedX = shiftedX + shiftedX; 
+			let bitCounter = bitCounter + 1; 
+		}
+		
+		
+		return 0;
+    }
+
+    /** Returns the integer part of x/y.
+     *  When a Jack compiler detects the multiplication operator '/' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x/y and divide(x,y) return the same value.
+     */
+    function int divide(int x, int y) {
+		
+		var int q; 
+		
+		if(y > x)
+		{
+			return 0; 
+		}
+		
+		let q = Math.divide(x, 2 * y);
+		
+		if(((x - 2) * q * y) < y)
+		{
+			return 2 * q; 
+		}
+		else
+		{
+			return (2 * q) + 1; 
+		}
+    }
+
+    /** Returns the integer part of the square root of x. */
+    function int sqrt(int x) {
+		
+		var int counter; 
+		var int y;
+		var int help; 
+		
+		let y = 0;
+		let counter = (bitAmount / 2) - 1;
+		let help = 0; 
+		
+		while(counter > 0)
+		{
+			let help = counter + Math.twopow(counter); 
+			
+			if((help * help) < (x + 1))
+			{
+				let y  = help; 
+			}
+		}
+		
+		return y; 
+    }
+	
+	function int twopow(int x){
+		var int answer;
+		var int counter;
+
+		let answer = 1; 
+		let counter = 0;
+		
+		while (counter < x)
+		{
+			let answer = answer + answer; 
+		}
+		
+		return answer; 
+	}
+
+    /** Returns the greater number. */
+    function int max(int a, int b) {
+		
+		if (a > b)
+		{
+			return a; 
+		}
+		
+		return b; 
+    }
+
+    /** Returns the smaller number. */
+    function int min(int a, int b) {
+	
+		if (a < b)
+		{
+			return a; 
+		}
+		
+		return b; 
+	}
+	
+	function boolean bit(int a, int b){
+		
+		var int indicator; 
+		
+		let indicator = a & litBitsArray[b];
+		
+		return indicator > 0 ;
+	}
+	
+}
